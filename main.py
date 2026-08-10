@@ -16,11 +16,15 @@ path = "sms+spam+collection/SMSSpamCollection"
 df = pd.read_csv(path, sep=r"\t", header=None, engine="python")
 df = df.rename({0:"Class", 1:"SMS"}, axis=1)
 
-# Fn to clean sms in terms of spacings
+# Function to clean sms in terms of spacings
 
 def clean_str(txt):
     txt = txt.lower()
+    # remove leading and trailing whitespace
+    txt = txt.strip()
 
+    txt = re.sub(r'\s+', ' ', txt)
+    """print(txt)
     modified_str = ""
     for i in range(len(txt)):
         # Make sure there is only one space between words
@@ -31,13 +35,11 @@ def clean_str(txt):
         elif (txt[i] == " ") and (txt[i+1] != " ") and (i != 0):
             modified_str += " "
         elif txt[i] != " ":
-            modified_str += txt[i]
-
-    # return with removed punctuation
-    return modified_str.translate(str.maketrans("", "", string.punctuation))
+            modified_str += txt[i]"""
+    return txt
 
 
-df["SMS"] = df["SMS"].apply(clean_str)
+#df["SMS"] = df["SMS"].apply(clean_str)
 
 preprocessed_sentences = [df['SMS'][i].split(' ') for i in range(df.shape[0])]
 
@@ -45,7 +47,11 @@ preprocessed_sentences = [df['SMS'][i].split(' ') for i in range(df.shape[0])]
 # Theory: Message format could also be a signal for spam/ham; poor format could indicate spam
 # The use of word shorteners could indicate ham
 
+# EDA
 
+print(df[df['Class'] == 'spam'].iloc[8, 1])
+
+'''
 # Convert Spam/Ham to 1/0
 
 df["Class"] = df["Class"].replace({"spam":1, "ham":0})
@@ -114,7 +120,7 @@ def tkn(string):
 # a simple RNN. 
 
 # First: Split up the SMS' to groups of 4
-'''
+
 grouped_X_train = X_train.apply(tkn)
 grouped_X_test = X_test.apply(tkn)
 
@@ -143,4 +149,7 @@ for sms in range(len(group_list_train)):
 embedded_df = pd.DataFrame({"SMS": group_list_train, "Class": y_train})
 
 # train the RNN
+
+
+
 '''

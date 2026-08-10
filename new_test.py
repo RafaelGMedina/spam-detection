@@ -1,34 +1,24 @@
 import pandas as pd
 import numpy as np
+from classes import Huffman
 
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from gensim.models import Word2Vec
+test_data = pd.DataFrame({'Word': ['a', 'b', 'c', 'd', 'e', 'f'], 'Count': [5, 9, 12, 13, 16, 45]})
 
 
+'''
+# First, create Huffman objects for each of the words and replace the Words column with the objects instead of the word
 
-# Sample sentences with variety
-sentences = [
-    "The quick brown fox jumps over the lazy dog.",
-    "Artificial intelligence is transforming the world we live in.",
-    "Deep learning techniques have greatly improved image recognition.",
-    "Natural language processing allows computers to understand human language.",
-    "Data science combines statistics, computer science, and domain knowledge.",
-    "The weather is nice today, perfect for a walk in the park.",
-    "Cats are often seen as independent and curious creatures.",
-    "The stock market fluctuates based on various economic indicators.",
-    "Exploring new cuisines can be an exciting culinary adventure.",
-    "Machine learning algorithms can learn from data and make predictions.",
-]
-# Preprocess sentences
-test = []
+huff_objs = pd.Series([Huffman(5, word) for word in test_data['Words']])
 
-for sentence in sentences:
-    test.append(sentence.split(" "))
+test_data['Words'] = huff_objs
 
-# Train Word2Vec model
-model = Word2Vec(sentences=test, vector_size=100, window=5, min_count=1, workers=4, sg=1)
+print(test_data)
 
-# Save the model for future use
-print(model.wv.index_to_key)
+'''
+huff = Huffman(test_data)
+
+huff.fit()
+
+print(huff.root)
+
+print(huff.code)
