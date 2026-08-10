@@ -36,8 +36,6 @@ def clean_str(txt):
             modified_str += " "
         elif txt[i] != " ":
             modified_str += txt[i]"""
-
-    # return with removed punctuation
     return txt
 
 
