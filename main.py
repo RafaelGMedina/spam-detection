@@ -5,9 +5,10 @@ import numpy as np
 import re
 import string
 from sklearn.model_selection import train_test_split
-from gensim.models import Word2Vec
 from sklearn.preprocessing import OneHotEncoder
-# from tensorflow.models import Sequential 
+from classes import Huffman
+
+from typing import List
 
 
 # Getting Data Ready
@@ -15,6 +16,8 @@ path = "sms+spam+collection/SMSSpamCollection"
 
 df = pd.read_csv(path, sep=r"\t", header=None, engine="python")
 df = df.rename({0:"Class", 1:"SMS"}, axis=1)
+# Convert Spam/Ham to 1/0
+df["Class"] = df["Class"].replace({"spam":1, "ham":0})
 
 # Function to clean sms in terms of spacings
 
@@ -24,37 +27,106 @@ def clean_str(txt):
     txt = txt.strip()
 
     txt = re.sub(r'\s+', ' ', txt)
-    """print(txt)
-    modified_str = ""
-    for i in range(len(txt)):
-        # Make sure there is only one space between words
-        if (i == 0) and (txt[i] != " "):
-            modified_str += txt[i]
-        elif (i == len(txt)-1) and (txt[i] != " "):
-            modified_str += txt[i]
-        elif (txt[i] == " ") and (txt[i+1] != " ") and (i != 0):
-            modified_str += " "
-        elif txt[i] != " ":
-            modified_str += txt[i]"""
     return txt
 
 
-#df["SMS"] = df["SMS"].apply(clean_str)
+df["SMS"] = df["SMS"].apply(clean_str)
 
+# Create a list where each element is the word in the string
 preprocessed_sentences = [df['SMS'][i].split(' ') for i in range(df.shape[0])]
-
 
 # Theory: Message format could also be a signal for spam/ham; poor format could indicate spam
 # The use of word shorteners could indicate ham
 
-# EDA
+# EDA (Done in the Python Notebook)
 
-print(df[df['Class'] == 'spam'].iloc[8, 1])
+# Word Embeddings from Scratch
+
+# Get the vocabulary as a single list in order to be able to one hot encode
+vocab = []
+
+for sentence in preprocessed_sentences:
+    vocab+=sentence
+vocab_series = pd.DataFrame(vocab)
+vocab_for_huffman = vocab_series.value_counts()
+vocab = list(vocab_for_huffman.value_counts().index)
+
+
+df['SMS'] = pd.Series(preprocessed_sentences, name='SMS')
+
+# Vector embedding parameters
+d = 50
+window = 4
+ivec_size = len(vocab)
+imatrix_dim = (ivec_size, d)
+
+# Create a function that will create the context/target pairs depending on our window size
+
+def context_target(sentence: List[str], window_size):
+    # window_size refers to window_size word(s) on the left of the current word and window_size
+    # word(s) on the right of the current word
+    pairs = {}
+
+    for word in sentence:
+        pairs[word] = []
+
+    for word_idx in range(len(sentence)):
+        current_target = sentence[word_idx]
+        count = 1
+
+        while count != window_size+1:
+            left = word_idx - count
+            right = word_idx + count
+            if left >= 0:
+                pairs[current_target].append(sentence[left])
+            if right < len(sentence):
+                pairs[current_target].append(sentence[right])
+
+            count += 1
+
+    return pairs
+
+
+
+df['Training Pairs'] = df['SMS'].apply(lambda x: context_target(x, 2))
+
+# Our DataFrame looks like [Class, SMS (Each SMS is a list, each element is a word), Training Pairs]
+print(df)
+# Construct Huffman Tree
+'''
+huff = Huffman(vocab_for_huffman)
+huff.fit()
+'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 '''
-# Convert Spam/Ham to 1/0
 
-df["Class"] = df["Class"].replace({"spam":1, "ham":0})
 
 # Use gensim's Word2Vec model
 
