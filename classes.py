@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
+from math import ceil
 
 
 class Node:
@@ -93,10 +94,13 @@ class EmbeddingNN:
     # This will be the main function that will be used for training our word embeddings using the above helper functions
     def main(self, batch_size):
         # self.data contains the Training Pairs column that we will use for updating
-        
-        # TODO split the data into the desired batch sizes
+        num_samples = 0
+        for row in range(self.data.shape[0]):
+            num_samples += len(self.data['SMS'].iloc[row])
 
-
-        # test
+        # 1: Set up the batch samples
+        batch_samples = []
+        for batch in range(ceil(num_samples/batch_size)):
+            current_num_samples = 0
 
         pass

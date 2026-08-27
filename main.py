@@ -68,6 +68,7 @@ def context_target(sentence: List[str], window_size):
     pairs = {}
 
     for word in sentence:
+        
         pairs[word] = []
 
     for word_idx in range(len(sentence)):
