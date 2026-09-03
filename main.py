@@ -49,7 +49,7 @@ for sentence in preprocessed_sentences:
     vocab+=sentence
 vocab_series = pd.DataFrame(vocab)
 vocab_for_huffman = vocab_series.value_counts()
-vocab = list(vocab_for_huffman.value_counts().index)
+vocab = list(vocab_series[0])
 
 
 df['SMS'] = pd.Series(preprocessed_sentences, name='SMS')
@@ -65,25 +65,26 @@ imatrix_dim = (ivec_size, d)
 def context_target(sentence: List[str], window_size):
     # window_size refers to window_size word(s) on the left of the current word and window_size
     # word(s) on the right of the current word
-    pairs = {}
-
-    for word in sentence:
-        
-        pairs[word] = []
+    pairs = []
 
     for word_idx in range(len(sentence)):
         current_target = sentence[word_idx]
         count = 1
+        pair = {}
+
+        pair[current_target] = []
 
         while count != window_size+1:
             left = word_idx - count
             right = word_idx + count
             if left >= 0:
-                pairs[current_target].append(sentence[left])
+                pair[current_target].append(sentence[left])
             if right < len(sentence):
-                pairs[current_target].append(sentence[right])
+                pair[current_target].append(sentence[right])
 
             count += 1
+        pairs.append(pair)
+        
 
     return pairs
 
@@ -92,7 +93,6 @@ def context_target(sentence: List[str], window_size):
 df['Training Pairs'] = df['SMS'].apply(lambda x: context_target(x, 2))
 
 # Our DataFrame looks like [Class, SMS (Each SMS is a list, each element is a word), Training Pairs]
-print(df)
 # Construct Huffman Tree
 '''
 huff = Huffman(vocab_for_huffman)
@@ -101,6 +101,15 @@ huff.fit()
 
 
 
+# check the output of ohe the vocab array
+new_vocab = np.array(vocab).reshape(-1, 1)
+new_ohe = OneHotEncoder()
+new_ohe.fit(new_vocab)
+
+to_transform = np.array(['free', 'the']).reshape(-1, 1)
+
+
+print(type(new_ohe.transform(to_transform).indices))
 
 
 

@@ -1,3 +1,5 @@
-some_dict = {'a': 1, 'b': 2, 'c': 3}
+import numpy as np
 
-print(len(some_dict))
+arr = np.array([1, 2, 3, 4, 5])
+
+print(arr[[1, 3]])

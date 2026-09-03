@@ -3,7 +3,6 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 from math import ceil
 
-
 class Node:
     def __init__(self, value=None, count=None, left=None, right=None, embed_dim=None):
         self.value = value
@@ -77,10 +76,11 @@ class Huffman:
 # Class that trains a Skip-Grams NN
 class EmbeddingNN:
     def __init__(self, data: pd.DataFrame, huffman: Huffman, vocab: list):
-        # Data looks like: [Class, SMS (list of words), Training Pairs (dictionary of training pairs (input: [targets]))]
+        # Data looks like: [Class, SMS (list of words), Training Pairs]
         self.data = data
         self.huffman = huffman
-        self.ohe = OneHotEncoder().fit(vocab)
+        self.vocab = vocab
+        self.ohe = OneHotEncoder().fit(np.array(self.vocab).reshape(-1, 1))
 
     def sigmoid(x):
         return 1/(1 + np.exp(-x))
@@ -91,16 +91,82 @@ class EmbeddingNN:
         # var will either be the hidden layer or the node vector
         return old_vec - learning_rate*(sigmoid - direction)*var
 
+    # The algorithm will be used when updating the huffman vector weights considering all target words
+    def node_update_skipgram(self, target_list: list):
+        target_paths = [self.huffman.code[target] for target in target_list]
+
+
+
     # This will be the main function that will be used for training our word embeddings using the above helper functions
-    def main(self, batch_size):
-        # self.data contains the Training Pairs column that we will use for updating
+    def main(self, batch_size, embedding_dim):
         num_samples = 0
         for row in range(self.data.shape[0]):
             num_samples += len(self.data['SMS'].iloc[row])
 
+        sample_list = []
+        for i in range(self.data.shape[0]):
+            sample_list += self.data['Training Pairs'].iloc[i]
+
         # 1: Set up the batch samples
         batch_samples = []
-        for batch in range(ceil(num_samples/batch_size)):
-            current_num_samples = 0
+        batch_samples_vocab = []
+        start_idx = 0
+        groups = ceil(num_samples/batch_size)
 
-        pass
+        for batch in range(groups):
+            if batch == groups-1:
+                batch_samples.append(sample_list[start_idx:])
+                batch_samples_vocab.append(self.vocab[start_idx:])
+            else:
+                batch_samples.append(sample_list[start_idx: start_idx+batch_size])
+                batch_samples_vocab.append(self.vocab[start_idx: start_idx+batch_size])
+
+                start_idx += batch_size
+
+        # 2: Instantiate the word embeddings/weight matrix
+
+        # Vocab x Embed matrix
+        W = np.array([[.5]*embedding_dim for i in range(len(self.vocab))])
+        # For the input matrix, since it's a OHE, and H will simply be a subset of W. We only need the column of W
+
+        # 3: Forward pass
+        # 
+        # This is where the training will occur. Weight update will be after every batch
+
+        # TODO: Will need to optimize this so that we don't have a double for loop
+        for batch in batch_samples:
+            words = []
+            targets = []
+            huffman_path = []
+
+            # unpack the dictionaries into two lists
+            for dict in batch:
+                word = dict.keys()
+                target = dict.values()
+
+                words.append(word)
+                targets.append(target)
+
+                huffman_path.append(self.huffman.code[word])
+
+            to_transform = np.array(words).reshape(-1, 1)
+            word_columns: np.array = self.ohe.transform(to_transform).indices
+            
+            H = W[word_columns]
+
+            # Will need to traverse to all target words and sum up the loss to get the total loss for the input word
+
+            # We will only update the weights once we iterate through all the samples in the batch
+
+            for i in range(len(words)):
+                dE_dv = 0
+
+                current_word = words[i]
+                current_targets = targets[i]
+
+                for target_word in current_targets:
+                    path_to_target = self.huffman.code[target_word]
+
+
+
+
