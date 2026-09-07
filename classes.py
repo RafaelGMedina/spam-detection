@@ -9,11 +9,12 @@ class Node:
         self.count = count
         self.left = left
         self.right = right
+
         # instantiate initial node vectors
         try:
             self.vec = [.5 for i in range(embed_dim)]
         except:
-            pass
+            self.vec = None
         
 
 # Huffman Tree
@@ -81,46 +82,90 @@ class EmbeddingNN:
         self.huffman = huffman
         self.vocab = vocab
         self.ohe = OneHotEncoder().fit(np.array(self.vocab).reshape(-1, 1))
+        self.training_pairs = []
+
+        # Put all of the training pairs into a single list
+        for row in range(self.data.shape[0]):
+            self.training_pairs += self.data['Training Pairs'].iloc[row]
 
     def sigmoid(x):
         return 1/(1 + np.exp(-x))
 
     # The update equation that will be used to update the nodes of the huffman tree
-    def update_equation(old_vec, learning_rate, sigmoid, direction, var):
-        # Depending on whether we are updating wrt the weight matrix or the weights of the nodes, 
-        # var will either be the hidden layer or the node vector
-        return old_vec - learning_rate*(sigmoid - direction)*var
+    def update_equation(old_vec, learning_rate, derivative):
+        return old_vec - learning_rate*derivative
 
-    # The algorithm will be used when updating the huffman vector weights considering all target words
-    def node_update_skipgram(self, target_list: list):
-        target_paths = [self.huffman.code[target] for target in target_list]
+    # The algorithm will be used when updating the huffman vector for a single node
+    # The logic for updating all nodes will be in a different function
+    def dE_dv(self, v: np.array, h: np.array, direction):
+        return self.sigmoid(v.T@h) - direction
+
+    def node_update(self, tree: Huffman, training_paths, H, batch_size):
+        # We might use this function to recursively traverse the tree and calculate updates
+        #
+        # Logic: All words will start at the root, so when calculating the update, we take all the words into consideration. 
+        # Then some will diverge left, the rest right. Once this divergence occurs, we will call the function for the 
+        # nodes on the left path and another call for the nodes on the right path. The base case for any path is if we have reached 
+        # the word we are looking for. We only call the function on words whose path still contains paths. When making the function
+        # calls, we will need to 'pop' the previous decision
+        #
+        # To preserve the original weights, we will need to perform this updating after we update the input to hidden weights. 
+
+        H = tree.vec
+
+        # Base Case: H/training_paths is empty. We don't return anything since we are updating the nodes on the fly 
+        if H == None:
+            return
+
+        # We will update the node here
+
+
+        # Second Part
+        left_group_H = []
+        left_group_train = []
+        right_group_H = []
+        right_group_train = []
+        
+
+        for sample_idx in range(len(H)):
+            direction = training_paths[sample_idx][0]
+
+            if direction == 1:
+                left_group_H.append(H[sample_idx])
+                left_group_train.append(training_paths[sample_idx])
+            elif direction == 0:
+                right_group_H.append(H)
+                right_group_train.append(training_paths[sample_idx])
+
+            if len(training_paths[sample_idx]) == 1:
+                training_paths.pop(sample_idx)
+                H.pop(sample_idx)
+
+            else:
+                H[sample_idx] = H[sample_idx][1:]
+
+
+
+        pass
 
 
 
     # This will be the main function that will be used for training our word embeddings using the above helper functions
     def main(self, batch_size, embedding_dim):
-        num_samples = 0
-        for row in range(self.data.shape[0]):
-            num_samples += len(self.data['SMS'].iloc[row])
+        # Put all training pairs into a single list
+        num_samples = len(self.training_pairs)
 
-        sample_list = []
-        for i in range(self.data.shape[0]):
-            sample_list += self.data['Training Pairs'].iloc[i]
 
         # 1: Set up the batch samples
         batch_samples = []
-        batch_samples_vocab = []
         start_idx = 0
         groups = ceil(num_samples/batch_size)
 
         for batch in range(groups):
             if batch == groups-1:
-                batch_samples.append(sample_list[start_idx:])
-                batch_samples_vocab.append(self.vocab[start_idx:])
+                batch_samples.append(self.training_pairs[start_idx:])
             else:
-                batch_samples.append(sample_list[start_idx: start_idx+batch_size])
-                batch_samples_vocab.append(self.vocab[start_idx: start_idx+batch_size])
-
+                batch_samples.append(self.training_pairs[start_idx: start_idx+batch_size])
                 start_idx += batch_size
 
         # 2: Instantiate the word embeddings/weight matrix
@@ -129,8 +174,7 @@ class EmbeddingNN:
         W = np.array([[.5]*embedding_dim for i in range(len(self.vocab))])
         # For the input matrix, since it's a OHE, and H will simply be a subset of W. We only need the column of W
 
-        # 3: Forward pass
-        # 
+
         # This is where the training will occur. Weight update will be after every batch
 
         # TODO: Will need to optimize this so that we don't have a double for loop
@@ -140,22 +184,18 @@ class EmbeddingNN:
             huffman_path = []
 
             # unpack the dictionaries into two lists
-            for dict in batch:
-                word = dict.keys()
-                target = dict.values()
+            for tup in batch:
+                target = tup[1]
 
-                words.append(word)
+                words.append(tup[0])
                 targets.append(target)
 
-                huffman_path.append(self.huffman.code[word])
+                huffman_path.append(self.huffman.code[target])
 
             to_transform = np.array(words).reshape(-1, 1)
-            word_columns: np.array = self.ohe.transform(to_transform).indices
+            input_columns: np.array = self.ohe.transform(to_transform).indices
             
-            H = W[word_columns]
-
-            # Will need to traverse to all target words and sum up the loss to get the total loss for the input word
-
+            H = W[input_columns]
             # We will only update the weights once we iterate through all the samples in the batch
 
             for i in range(len(words)):
